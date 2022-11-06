@@ -1,6 +1,4 @@
-# Project-23
-
-## PERSISTING DATA IN KUBERNETES
+# Project-23: PERSISTING DATA IN KUBERNETES
 
 **NOTE**: Create EKS cluster first before the below section
 
@@ -14,7 +12,7 @@ Now we know that containers are stateless by design, which means that data does 
 
 To achieve statefuleness in kubernetes, you must understand how volumes, persistent volumes, and persistent volume claims work.
 
-### Volumes
+## Volumes
 
 On-disk files in a container are ephemeral, which presents some problems for non-trivial applications when running in containers. One problem is the loss of files when a container crashes. The kubelet restarts the container but with a clean state. A second problem occurs when sharing files between containers running together in a Pod. The Kubernetes volume abstraction solves both of these problems
 
@@ -96,7 +94,7 @@ spec:
 EOF
 ```
 
-### Tasks
+#### Tasks
 
 - Verify that the pod is running
 
@@ -321,7 +319,7 @@ metadata:
   labels:
     tier: frontend
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       tier: frontend
@@ -419,7 +417,7 @@ metadata:
   labels:
     tier: frontend
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       tier: frontend
@@ -480,7 +478,7 @@ kubectl  port-forward svc/nginx-service 8089:80
 
 ![404 not found](./images/404-not-found.PNG)
 
-2. It is still a manual process to create a volume, manually ensure that the volume created is in the same Avaioability zone in which the pod is running, and then update the manifest file to use the volume ID. All of these is against DevOps principles because it will mean having a lot of road blocks to getting a simple thing done.
+2. It is still a manual process to create a volume, manually ensure that the volume created is in the same Availability Zone in which the pod is running, and then update the manifest file to use the volume ID. All of these is against DevOps principles because it will mean having a lot of road blocks to getting a simple thing done.
 
 The more elegant way to achieve this is through Persistent Volume and Persistent Volume claims.
 
@@ -542,7 +540,7 @@ If there is no storage class in your cluster, below manifest is an example of ho
 
 3. Using: Pods use claims as volumes. The cluster inspects the claim to find the bound volume and mounts that volume for a Pod. For volumes that support multiple access modes, the user specifies which mode is desired when using their claim as a volume in a Pod. Once a user has a claim and that claim is bound, the bound PV belongs to the user for as long as they need it. Users schedule Pods and access their claimed PVs by including a persistentVolumeClaim section in a Pod’s volumes block
 
-4. Storage Object in Use Protection: The purpose of the Storage Object in Use Protection feature is to ensure that PersistentVolumeClaims (PVCs) in active use by a Pod and PersistentVolume (PVs) that are bound to PVCs are not removed from the system, as this may result in data loss. Note: PVC is in active use by a Pod when a Pod object exists that is using the PVC. If a user deletes a PVC in active use by a Pod, the PVC is not removed immediately. PVC removal is postponed until the PVC is no longer actively used by any Pods. Also, if an admin deletes a PV that is bound to a PVC, the PV is not removed immediately. PV removal is postponed until the PV is no longer bound to a PVC.
+4. Storage Object in Use Protection: The purpose of the Storage Object in Use Protection feature is to ensure that PersistentVolumeClaims (PVCs) in active use by a Pod and PersistentVolume (PVs) that are bound to PVCs are not removed from the system, as this may result in data loss. **Note**: PVC is in active use by a Pod when a Pod object exists that is using the PVC. If a user deletes a PVC in active use by a Pod, the PVC is not removed immediately. PVC removal is postponed until the PVC is no longer actively used by any Pods. Also, if an admin deletes a PV that is bound to a PVC, the PV is not removed immediately. PV removal is postponed until the PV is no longer bound to a PVC.
 
 5. Reclaiming: When a user is done with their volume, they can delete the PVC objects from the API that allows reclamation of the resource. The reclaim policy for a PersistentVolume tells the cluster what to do with the volume after it has been released of its claim. Currently, volumes can either be Retained, Recycled, or Deleted.
     - Retain: The Retain reclaim policy allows for manual reclamation of the resource. When the PersistentVolumeClaim is deleted, the PersistentVolume still exists and the volume is considered "released". But it is not yet available for another claim because the previous claimant’s data remains on the volume.
@@ -578,9 +576,11 @@ Apply the manifest file and you will get an output like below
 
 persistentvolumeclaim/nginx-volume-claim created
 
-  `Run get on the pvc and you will notice that it is in pending state. `
+Run get on the pvc and you will notice that it is in pending state. `
 
-  `kubectl get pvc`
+```
+kubectl get pvc
+```
 
 ```
 NAME                 STATUS    VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS   AGE
@@ -607,7 +607,7 @@ Events:
   Normal  WaitForFirstConsumer  12s (x10 over 2m24s)  persistentvolume-controller  waiting for first consumer to be created before binding
 ```
 
-If you run `kubectl get pv` you will see that no PV is created yet. The *waiting for first consumer to be created before binding* is a configuration setting from the storageClass. See the `VolumeBindingMode` section below.
+If you run `kubectl get pv` you will see that no PV is created yet. The **waiting for first consumer to be created before binding** is a configuration setting from the storageClass. See the `VolumeBindingMode` section below.
 
 ```
 kubectl describe storageclass gp2
@@ -663,7 +663,10 @@ Notice that the volumes section now has a `persistentVolumeClaim`. With the new 
 
 Now lets check the dynamically created PV
 
-  `kubectl get pv`
+```
+kubectl get pv
+```
+
 ```
 NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                        STORAGECLASS   REASON   AGE
 pvc-cc79de3f-0029-4605-8686-5a127d90e43d   2Gi        RWO            Delete           Bound    default/nginx-volume-claim   gp2                     4s
@@ -675,11 +678,13 @@ You can copy the PV Name and search in the AWS console. You will notice that the
 
 Remember to port-forward the service
 
-  `kubectl port-forward svc/nginx-service 8089:80`
+```
+kubectl port-forward svc/nginx-service 8089:80
+```
 
 ![nginx page after dynamically creating a pv](./images/nginx-page-after-dynamic-pvc.PNG)
 
-## Approach 2 
+### Approach 2 
 
  [See an example here](https://www.elastic.co/guide/en/cloud-on-k8s/current/k8s-volume-claim-templates.html)
 
@@ -702,10 +707,12 @@ Lets go through the below process so that you can see an example of a configMap 
 
 3. Exec into the running container and keep a copy of the index.html file somewhere. For example
 
-  `kubectl exec -it nginx-deployment-6fdcffd8fc-6p9w8 -- bash`
-
-  `cat /usr/share/nginx/html/index.html` 
-
+```
+kubectl exec -it nginx-deployment-6fdcffd8fc-6p9w8 -- bash
+```
+```
+cat /usr/share/nginx/html/index.html
+``` 
 
 4. Copy the output and save the file on your local pc because we will need it to create a configmap.
 
@@ -754,7 +761,9 @@ EOF
 
 - Apply the new manifest file
 
-  `kubectl apply -f nginx-configmap.yaml`
+```
+kubectl apply -f nginx-configmap.yaml
+```
 
 - Update the deployment file to use the configmap in the volumeMounts section
 
@@ -819,7 +828,9 @@ We are interested in the website-index-file configmap
 
 Update the configmap. You can either update the manifest file, or the kubernetes object directly. Lets use the latter approach this time.
 
-  `kubectl edit cm website-index-file `
+```
+kubectl edit cm website-index-file
+```
 
 It will open up a vim editor, or whatever default editor your system is configured to use. Update the content as you like. "Only the html data section", then save the file.
 
@@ -867,7 +878,9 @@ Without restarting the pod, your site should be loaded automatically.
 
 If you wish to restart the deployment for any reason, simply use the command
 
-   `kubectl rollout restart deploy nginx-deployment `
+```
+kubectl rollout restart deploy nginx-deployment
+```
 
 ### output:
 
@@ -882,3 +895,4 @@ In the next project
 - And many more awesome technologies
 
 ## Thank you.
+
