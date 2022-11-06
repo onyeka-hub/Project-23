@@ -686,8 +686,6 @@ kubectl port-forward svc/nginx-service 8089:80
 
 ### Approach 2 
 
- [See an example here](https://www.elastic.co/guide/en/cloud-on-k8s/current/k8s-volume-claim-templates.html)
-
 1. Create a volumeClaimTemplate within the Pod spec. This approach is simply adding the manifest for PVC right within the Pod spec of the deployment.
 2. Then use the PVC name just as Approach 1 above.
 
@@ -836,7 +834,7 @@ It will open up a vim editor, or whatever default editor your system is configur
 
 You should see an output like this
 
-  `configmap/website-index-file edited`
+configmap/website-index-file edited
 
 ```
 apiVersion: v1
@@ -884,7 +882,7 @@ kubectl rollout restart deploy nginx-deployment
 
 ### output:
 
-  `deployment.apps/nginx-deployment restarted`
+deployment.apps/nginx-deployment restarted
 
 This will terminate the running pod and spin up a new one.
 
