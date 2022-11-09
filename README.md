@@ -5,7 +5,7 @@
 Connect to the cluster with the below command
 
 ```
-aws eks --region us-east-2 update-kubeconfig --name terraform-eks-demo
+aws eks --region us-east-2 update-kubeconfig --name onyeka-terraform-eks-one-node
 ```
 
 Now we know that containers are stateless by design, which means that data does not persist in the containers. Even when you run the containers in kubernetes pods, they still remain stateless unless you ensure that your configuration supports statefulness.
@@ -190,7 +190,7 @@ Now that we have the pod running without a volume, Lets now create a volume from
 
 1. In your AWS console, head over to the EC2 section and scroll down to the Elastic Block Storage menu.
 2. Click on Volumes
-3. At the top right, click on Create Volume 
+3. At the top right click on Create Volume 
 
 Part of the requirements is to ensure that the volume exists in the same region and availability zone as the EC2 instance running the pod. Hence, we need to find out
 
@@ -201,9 +201,10 @@ Part of the requirements is to ensure that the volume exists in the same region 
 
 Output:
 
-
+```
 NAME                                READY   STATUS    RESTARTS   AGE   IP           NODE                                       NOMINATED NODE   READINESS GATES
 nginx-deployment-6fdcffd8fc-hbz2s   1/1     Running   0          15m   10.0.0.144   ip-10-0-0-216.us-east-2.compute.internal   <none>           <none>
+```
 
 The NODE column shows the node the pode is running on
 
@@ -211,6 +212,7 @@ The NODE column shows the node the pode is running on
 ```
 kubectl describe node ip-10-0-0-216.us-east-2.compute.internal
 ```
+
 The information is written in the labels section of the descibe command.
 
 ```
@@ -500,7 +502,9 @@ If your infrastructure relies on a storage system such as NFS, iSCSI or a cloud 
 By default, in EKS, there is a default storageClass configured as part of EKS installation. This storageclass is based on gp2 which is Amazon’s default type of volume for Elastic block storage. gp2 is backed by solid-state drives (SSDs) which means they are suitable for a broad range of transactional workloads.
 
 Run the command below to check if you already have a storageclass in your cluster 
-**kubectl get storageclass**
+```
+kubectl get storageclass
+```
 
 ```
   $ kubectl get storageclass
@@ -569,7 +573,6 @@ spec:
   resources:
     requests:
       storage: 2Gi
-  storageClassName: gp2
 ```
 
 Apply the manifest file and you will get an output like below
@@ -652,14 +655,14 @@ spec:
         - containerPort: 80
         volumeMounts:
         - name: nginx-volume-claim
-          mountPath: "/tmp/dare"
+          mountPath: "/tmp/onyeka"
       volumes:
       - name: nginx-volume-claim
         persistentVolumeClaim:
           claimName: nginx-volume-claim
 ```
 
-Notice that the volumes section now has a `persistentVolumeClaim`. With the new deployment manifest, the `/tmp/dare` directory will be persisted, and any data written in there will be stored permanetly on the volume, which can be used by another Pod if the current one gets replaced.
+Notice that the volumes section now has a `persistentVolumeClaim`. With the new deployment manifest, the `/tmp/onyeka` directory will be persisted, and any data written in there will be stored permanetly on the volume, which can be used by another Pod if the current one gets replaced.
 
 Now lets check the dynamically created PV
 
@@ -690,6 +693,13 @@ kubectl port-forward svc/nginx-service 8089:80
 2. Then use the PVC name just as Approach 1 above.
 
 So rather than have 2 manifest files, you will define everything within the deployment manifest.
+
+### Clean up
+Delete the deployment, the PersistentVolumeClaim and the PersistentVolume:
+
+    kubectl delete deployment
+    kubectl delete pvc
+    kubectl delete pv
 
 ## CONFIGMAP
 
@@ -810,7 +820,7 @@ EOF
 
 ![pod content of configmap](./images/configmap-pop-content.PNG)
 
-You can now see that the index.html is now a soft link to ../data
+You can now see that the index.html is now a soft link to ..data/index.html
 
 - Accessing the site will not change anything at this time because the same html file is being loaded through configmap.
 
