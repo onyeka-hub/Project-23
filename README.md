@@ -5,7 +5,7 @@
 Connect to the cluster with the below command
 
 ```
-aws eks --region us-east-2 update-kubeconfig --name onyeka-terraform-eks-one-node
+aws eks update-kubeconfig --region us-east-2 --name onyeka-terraform-eks-one-node
 ```
 
 Now we know that containers are stateless by design, which means that data does not persist in the containers. Even when you run the containers in kubernetes pods, they still remain stateless unless you ensure that your configuration supports statefulness.
