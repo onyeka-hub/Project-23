@@ -6,6 +6,19 @@ Connect to the cluster with the below command
 
 ```
 aws eks update-kubeconfig --region us-east-2 --name onyeka-terraform-eks-one-node
+or
+export KUBECONFIG=/path/to/your/config file
+
+exporting multiple files
+export KUBECONFIG=/path/to/your/config file1:/path/to/your/config file2
+KUBECONFIG=/path/to/your/config file1:/path/to/your/config file2
+merging config files
+kubectl config view
+kubectl config view --raw
+kubectl config view --raw > ~/.kube/config.new
+mv ~/.kube/config.new ~/.kube/config
+unset KUBECONFIG
+
 ```
 
 Now we know that containers are stateless by design, which means that data does not persist in the containers. Even when you run the containers in kubernetes pods, they still remain stateless unless you ensure that your configuration supports statefulness.
@@ -456,7 +469,7 @@ The value provided to **name** in **volumeMounts** must be the same value used i
 
 In as much as we now have a way to persist data, we also have new problems.
 
-1. If you port forward the service and try to reach the endpoint, you will get a 404 error. This is because mounting a volume on a filesystem that already contains data will automatically erase all the existing data. This strategy for statefulness is preferred if the mounted volume already contains the data which you want to be made available to the container
+1. If you port forward the service and try to reach the endpoint, you will get a 404 error. This is because mounting a volume on a filesystem that already contains data will automatically erase all the existing data. This Onu for statefulness is preferred if the mounted volume already contains the data which you want to be made available to the container.
 
 - nginx-service.yaml file
 
@@ -489,7 +502,9 @@ In kubernetes, there are many elegant ways of persisting data. Each of which is 
 1. **Persistent Volume (PV)** and **Persistent Volume Claim (PVC)**
 2. **configMap**
 
-## MANAGING VOLUMES DYNAMICALLY WITH PVS AND PVCS
+## MANAGING VOLUMES DYNAMICALLY WITH PVS AND PVCS 
+
+Ensure that you have csi-driver installed on your cluster
 
 Kubernetes provides API objects for storage management such that, the lower level details of volume provisioning, storage allocation, access management etc are all abstracted away from the user, and all you have to do is present manifest files that describes what you want to get done.
 
@@ -538,9 +553,10 @@ If there is no storage class in your cluster, below manifest is an example of ho
 1. Provisioning: There are two ways PVs may be provisioned: **statically or dynamically**.
 
     - Static/Manual Provisioning: A cluster administrator creates a number of PVs using a manifest file which will contain all the details of the real storage. PVs are not scoped to namespaces, they are clusterwide resource, therefore the PV will be available for use when requested. PVCs on the other hand are namespace scoped.
+
     - Dynamic: When there is no PV matching a PVC’s request, then based on the available StorageClass, a dynamic PV will be created for use by the PVC. If there is no StorageClass, then the request for a PV by the PVC will fail.
 
-2. Binding: PVCs are bound to specifiv PVs. This binding is exclusive. A PVC to PV binding is a one-to-one mapping. Claims will remain unbound indefinitely if a matching volume does not exist. Claims will be bound as matching volumes become available. For example, a cluster provisioned with many 50Gi PVs would not match a PVC requesting 100Gi. The PVC can be bound when a 100Gi PV is added to the cluster.
+2. Binding: PVCs are bound to specific PVs. This binding is exclusive. A PVC to PV binding is a one-to-one mapping. Claims will remain unbound indefinitely if a matching volume does not exist. Claims will be bound as matching volumes become available. For example, a cluster provisioned with many 50Gi PVs would not match a PVC requesting 100Gi. The PVC can be bound when a 100Gi PV is added to the cluster.
 
 3. Using: Pods use claims as volumes. The cluster inspects the claim to find the bound volume and mounts that volume for a Pod. For volumes that support multiple access modes, the user specifies which mode is desired when using their claim as a volume in a Pod. Once a user has a claim and that claim is bound, the bound PV belongs to the user for as long as they need it. Users schedule Pods and access their claimed PVs by including a persistentVolumeClaim section in a Pod’s volumes block
 
@@ -752,7 +768,7 @@ data:
     </style>
     </head>
     <body>
-    <h1>Welcome to nginx!</h1>
+    <h1>Welcome to onyeka's world!</h1>
     <p>If you see this page, the nginx web server is successfully installed and
     working. Further configuration is required.</p>
 
@@ -761,7 +777,7 @@ data:
     Commercial support is available at
     <a href="http://nginx.com/">nginx.com</a>.</p>
 
-    <p><em>Thank you for using nginx.</em></p>
+    <p><em>Thank you for using my site.</em></p>
     </body>
     </html>
 EOF
