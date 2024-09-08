@@ -26,5 +26,5 @@ spec:
       - name: nginx-volume
         # This AWS EBS volume must already exist.
         awsElasticBlockStore:
-          volumeID: "vol-029465f672e00f4cc"
+          volumeID: "vol-0271670c195730f2c"
           fsType: ext4

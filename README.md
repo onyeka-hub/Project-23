@@ -18,7 +18,6 @@ kubectl config view --raw
 kubectl config view --raw > ~/.kube/config.new
 mv ~/.kube/config.new ~/.kube/config
 unset KUBECONFIG
-
 ```
 
 Now we know that containers are stateless by design, which means that data does not persist in the containers. Even when you run the containers in kubernetes pods, they still remain stateless unless you ensure that your configuration supports statefulness.
@@ -43,7 +42,7 @@ An awsElasticBlockStore volume mounts an **Amazon Web Services (AWS) EBS** volum
 
 Lets see what it looks like for our Nginx pod to persist data using awsElasticBlockStore volume
 
-```
+```sh
 sudo cat <<EOF | sudo tee ./nginx-pod.yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -81,7 +80,7 @@ If you notice the config above carefully, you will realise that there is need to
 
 Before you create a volume, lets run the nginx deployment into kubernetes without a volume.
 
-```
+```sh
 sudo cat <<EOF | sudo tee ./nginx-pod.yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -120,8 +119,12 @@ nginx-deployment-6fdcffd8fc-pfzpb   1/1     Running   0          2m4s
 
 - Check the logs of the pod
 
-```
+```sh
 $ kubectl logs nginx-deployment-6fdcffd8fc-hbz2s
+```
+
+Output
+```
 /docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
 /docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/
 /docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh
@@ -143,9 +146,9 @@ $ kubectl logs nginx-deployment-6fdcffd8fc-hbz2s
 - Exec into the pod and navigate to the nginx configuration file /etc/nginx/conf.d
 - Open the config files to see the default configuration.
 
-```
-$ kubectl exec -it nginx-deployment-6fdcffd8fc-hbz2s bash
-kubectl exec [POD] [COMMAND] is DEPRECATED and will be removed in a future version. Use kubectl exec [POD] -- [COMMAND] instead.
+```sh
+$ kubectl exec -it nginx-deployment-6fdcffd8fc-hbz2s -- bash
+
 root@nginx-deployment-6fdcffd8fc-hbz2s:/# cat  /etc/nginx/conf.d/default.conf
 server {
     listen       80;
@@ -208,8 +211,8 @@ Now that we have the pod running without a volume, Lets now create a volume from
 Part of the requirements is to ensure that the volume exists in the same region and availability zone as the EC2 instance running the pod. Hence, we need to find out
 
 - Which node is running the pod (replace the pod name with yours)
-```
-    kubectl get pod nginx-deployment-6fdcffd8fc-hbz2s -o wide
+```sh
+kubectl get pod nginx-deployment-6fdcffd8fc-hbz2s -o wide
 ```
 
 Output:
@@ -222,14 +225,18 @@ nginx-deployment-6fdcffd8fc-hbz2s   1/1     Running   0          15m   10.0.0.14
 The NODE column shows the node the pode is running on
 
 - In which Availability Zone the node is running.
-```
+```sh
 kubectl describe node ip-10-0-0-216.us-east-2.compute.internal
 ```
 
 The information is written in the labels section of the descibe command.
 
-```
+```sh
 $ kubectl describe node ip-10-0-0-216.us-east-2.compute.internal
+```
+
+Output
+```
 Name:               ip-10-0-0-216.us-east-2.compute.internal
 Roles:              <none>
 Labels:             beta.kubernetes.io/arch=amd64
@@ -325,7 +332,7 @@ Events:                       <none>
 
 6. Update the deployment configuration with the volume spec.
 
-```
+```sh
 sudo cat <<EOF | sudo tee ./nginx-pod.yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -359,7 +366,7 @@ EOF
 
 Apply the new configuration and check the pod. As you can see, the old pod is being terminated while the updated one is up and running.
 
-```
+```sh
 $ kubectl get pod
 NAME                               READY   STATUS    RESTARTS   AGE
 nginx-deployment-ff4f54f45-hwcnh   1/1     Running   0          30s
@@ -367,8 +374,12 @@ nginx-deployment-ff4f54f45-hwcnh   1/1     Running   0          30s
 
 Now, the new pod has a volume attached to it, and can be used to run a container for statefuleness. Go ahead and explore the running pod. Run describe on both the pod and deployment
 
-```
+```sh
 $ kubectl describe pod
+```
+
+Output
+```
 Name:         nginx-deployment-ff4f54f45-hwcnh
 Namespace:    default
 Priority:     0
@@ -423,7 +434,7 @@ To complete the configuration, we will need to add another section to the deploy
 
 Lets do that now.
 
-```
+```sh
 cat <<EOF | tee ./nginx-pod.yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -459,7 +470,7 @@ EOF
 ```
 
 Notice the newly added section:
-```
+```yaml
         volumeMounts:
         - name: nginx-volume
           mountPath: /usr/share/nginx/
@@ -469,11 +480,11 @@ The value provided to **name** in **volumeMounts** must be the same value used i
 
 In as much as we now have a way to persist data, we also have new problems.
 
-1. If you port forward the service and try to reach the endpoint, you will get a 404 error. This is because mounting a volume on a filesystem that already contains data will automatically erase all the existing data. This Onu for statefulness is preferred if the mounted volume already contains the data which you want to be made available to the container.
+1. If you port forward the service and try to reach the endpoint, you will get a 404 error. This is because mounting a volume on a filesystem that already contains data will automatically erase all the existing data. This method for statefulness is preferred if the mounted volume already contains the data which you want to be made available to the container.
 
 - nginx-service.yaml file
 
-```
+```yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -504,7 +515,7 @@ In kubernetes, there are many elegant ways of persisting data. Each of which is 
 
 ## MANAGING VOLUMES DYNAMICALLY WITH PVS AND PVCS 
 
-Ensure that you have csi-driver installed on your cluster
+Ensure that you have ebs-csi-driver installed on your cluster. Consult [here](https://github.com/onyeka-hub/ebs-volume-mount-in-amazon-eks.git) for details on how to do that.
 
 Kubernetes provides API objects for storage management such that, the lower level details of volume provisioning, storage allocation, access management etc are all abstracted away from the user, and all you have to do is present manifest files that describes what you want to get done.
 
@@ -517,12 +528,13 @@ If your infrastructure relies on a storage system such as NFS, iSCSI or a cloud 
 By default, in EKS, there is a default storageClass configured as part of EKS installation. This storageclass is based on gp2 which is Amazon’s default type of volume for Elastic block storage. gp2 is backed by solid-state drives (SSDs) which means they are suitable for a broad range of transactional workloads.
 
 Run the command below to check if you already have a storageclass in your cluster 
-```
+```sh
 kubectl get storageclass
 ```
 
-```
-  $ kubectl get storageclass
+```sh
+$ kubectl get storageclass
+
 NAME            PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
 gp2 (default)   kubernetes.io/aws-ebs   Delete          WaitForFirstConsumer   false               
    8h
@@ -531,17 +543,17 @@ gp2 (default)   kubernetes.io/aws-ebs   Delete          WaitForFirstConsumer   f
 Of course, if the cluster is not EKS, then the storage class will be different. For example if the cluster is based on Google’s GKE or Azure’s AKS, then the storage class will be different.
 
 If there is no storage class in your cluster, below manifest is an example of how one would be created
-```
-  kind: StorageClass
-  apiVersion: storage.k8s.io/v1
-  metadata:
-    name: gp2
-    annotations:
-      storageclass.kubernetes.io/is-default-class: "true"
-  provisioner: kubernetes.io/aws-ebs
-  parameters:
-    type: gp2
-    fsType: ext4 
+```yaml
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: gp2
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: kubernetes.io/aws-ebs
+parameters:
+  type: gp2
+  fsType: ext4 
 ```
 
 **A PersistentVolumeClaim (PVC) on the other hand is a request for storage**. Just as Pods consume node resources, PVCs consume PV resources. Pods can request specific levels of resources (CPU and Memory). Claims can request specific size and access modes (e.g., they can be mounted ReadWriteOnce, ReadOnlyMany or ReadWriteMany, see AccessModes).
@@ -552,9 +564,9 @@ If there is no storage class in your cluster, below manifest is an example of ho
 
 1. Provisioning: There are two ways PVs may be provisioned: **statically or dynamically**.
 
-    - Static/Manual Provisioning: A cluster administrator creates a number of PVs using a manifest file which will contain all the details of the real storage. PVs are not scoped to namespaces, they are clusterwide resource, therefore the PV will be available for use when requested. PVCs on the other hand are namespace scoped.
+  - Static/Manual Provisioning: A cluster administrator creates a number of PVs using a manifest file which will contain all the details of the real storage. PVs are not scoped to namespaces, they are clusterwide resource, therefore the PV will be available for use when requested. PVCs on the other hand are namespace scoped.
 
-    - Dynamic: When there is no PV matching a PVC’s request, then based on the available StorageClass, a dynamic PV will be created for use by the PVC. If there is no StorageClass, then the request for a PV by the PVC will fail.
+  - Dynamic: When there is no PV matching a PVC’s request, then based on the available StorageClass, a dynamic PV will be created for use by the PVC. If there is no StorageClass, then the request for a PV by the PVC will fail.
 
 2. Binding: PVCs are bound to specific PVs. This binding is exclusive. A PVC to PV binding is a one-to-one mapping. Claims will remain unbound indefinitely if a matching volume does not exist. Claims will be bound as matching volumes become available. For example, a cluster provisioned with many 50Gi PVs would not match a PVC requesting 100Gi. The PVC can be bound when a 100Gi PV is added to the cluster.
 
@@ -578,7 +590,7 @@ Approach 1
 
 1. Create a manifest file for a PVC, and based on the gp2 storageClass a PV will be dynamically created
 
-```
+```yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -597,7 +609,7 @@ persistentvolumeclaim/nginx-volume-claim created
 
 Run get on the pvc and you will notice that it is in pending state. `
 
-```
+```sh
 kubectl get pvc
 ```
 
@@ -628,8 +640,9 @@ Events:
 
 If you run `kubectl get pv` you will see that no PV is created yet. The **waiting for first consumer to be created before binding** is a configuration setting from the storageClass. See the `VolumeBindingMode` section below.
 
-```
+```sh
 kubectl describe storageclass gp2
+
 Name: gp2
 IsDefaultClass: Yes
 Annotations: kubectl.kubernetes.io/last-applied-configuration={"apiVersion":"storage.k8s.io/v1","kind":"StorageClass","metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"},"name":"gp2"},"parameters":{"fsType":"ext4","type":"gp2"},"provisioner":"kubernetes.io/aws-ebs","volumeBindingMode":"WaitForFirstConsumer"}
@@ -647,7 +660,7 @@ To proceed, simply apply the new deployment configuration below.
 
 2. Then configure the Pod spec to use the PVC
 
-```
+```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -682,7 +695,7 @@ Notice that the volumes section now has a `persistentVolumeClaim`. With the new 
 
 Now lets check the dynamically created PV
 
-```
+```sh
 kubectl get pv
 ```
 
@@ -697,7 +710,7 @@ You can copy the PV Name and search in the AWS console. You will notice that the
 
 Remember to port-forward the service
 
-```
+```sh
 kubectl port-forward svc/nginx-service 8089:80
 ```
 
@@ -731,10 +744,9 @@ Lets go through the below process so that you can see an example of a configMap 
 
 3. Exec into the running container and keep a copy of the index.html file somewhere. For example
 
-```
+```sh
 kubectl exec -it nginx-deployment-6fdcffd8fc-6p9w8 -- bash
-```
-```
+
 cat /usr/share/nginx/html/index.html
 ``` 
 
@@ -748,7 +760,7 @@ In our own use case here, We will use configMap to create a file in a volume.
 
 The manifest file we look like:
 
-```
+```sh
 cat <<EOF | tee ./nginx-configmap.yaml
 apiVersion: v1
 kind: ConfigMap
@@ -785,13 +797,13 @@ EOF
 
 - Apply the new manifest file
 
-```
+```sh
 kubectl apply -f nginx-configmap.yaml
 ```
 
 - Update the deployment file to use the configmap in the volumeMounts section
 
-```
+```sh
 cat <<EOF | tee ./nginx-pod-with-cm.yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -831,12 +843,14 @@ EOF
 - Now the index.html file is no longer ephemeral because it is using a configMap that has been mounted onto the filesystem. This is now evident when you exec into the pod and list the /usr/share/nginx/html directory
 
 ```
-  root@nginx-deployment-84b799b888-fqzwk:/# ls -ltr  /usr/share/nginx/html
+root@nginx-deployment-84b799b888-fqzwk:/# ls -ltr  /usr/share/nginx/html
 ```
 
 ![pod content of configmap](./images/configmap-pop-content.PNG)
 
 You can now see that the index.html is now a soft link to ..data/index.html
+
+![comfigmap site](./images/configmap-site-editted.PNG)
 
 - Accessing the site will not change anything at this time because the same html file is being loaded through configmap.
 
@@ -852,7 +866,7 @@ We are interested in the website-index-file configmap
 
 Update the configmap. You can either update the manifest file, or the kubernetes object directly. Lets use the latter approach this time.
 
-```
+```sh
 kubectl edit cm website-index-file
 ```
 
@@ -862,7 +876,7 @@ You should see an output like this
 
 configmap/website-index-file edited
 
-```
+```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -898,17 +912,16 @@ Without restarting the pod, your site should be loaded automatically.
 
 ![comfigmap site](./images/configmap-site.PNG)
 
-![comfigmap site](./images/configmap-site-editted.PNG)
-
 If you wish to restart the deployment for any reason, simply use the command
 
-```
+```sh
 kubectl rollout restart deploy nginx-deployment
 ```
 
 ### output:
-
+```
 deployment.apps/nginx-deployment restarted
+```
 
 This will terminate the running pod and spin up a new one.
 
